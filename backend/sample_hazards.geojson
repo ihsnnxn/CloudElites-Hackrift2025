@@ -1,0 +1,33 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [103.851959, 1.290270]
+      },
+      "properties": {
+        "id": "hazard1",
+        "type": "curb_drop",
+        "severity": 0.8,
+        "confidence": 0.9,
+        "last_seen": "2025-12-09T10:00:00Z"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [103.852000, 1.290300]
+      },
+      "properties": {
+        "id": "hazard2",
+        "type": "broken_pavement",
+        "severity": 0.6,
+        "confidence": 0.85,
+        "last_seen": "2025-12-09T09:45:00Z"
+      }
+    }
+  ]
+}
