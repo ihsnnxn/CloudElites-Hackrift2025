@@ -1,3 +1,12 @@
+# Routing Engine Documentation
+
+See [ROUTING_ENGINE.md](./ROUTING_ENGINE.md) for a full overview of the advanced, extensible routing engine powering this project. It covers:
+- Multi-modal, predictive, and collaborative routing
+- Gamification, analytics, and real-time feedback
+- Extensible data source integration (APIs, sensors, etc.)
+- Usage patterns, extension, and demo/testing instructions
+
+For quickstart and integration, refer to the code examples and API in that file.
 # Routing Features Module
 
 This module provides advanced, hackathon-ready routing features for wheelchair-accessible navigation and social mobility apps.

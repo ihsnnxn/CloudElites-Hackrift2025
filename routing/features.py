@@ -1,3 +1,19 @@
+def get_route_with_external_data(G: nx.Graph, nodes: dict, start: str, end: str, profile: str = "safest", external_data: dict = None) -> list:
+    """
+    Compute a route using all available data, including external APIs/sensors (e.g., crowd, weather).
+    Args:
+        G: networkx.Graph object
+        nodes: dict mapping node names to (lat, lng)
+        start: start node name
+        end: end node name
+        profile: routing profile (e.g., 'safest', 'fastest')
+        external_data: dict of external data (optional)
+    Returns:
+        path: list of node names representing the route
+    """
+    if external_data:
+        G = merge_external_data(G, nodes, external_data)
+    return get_route_with_profile(G, start, end, profile)
 import logging
 import networkx as nx
 from typing import Any, Dict, List, Tuple

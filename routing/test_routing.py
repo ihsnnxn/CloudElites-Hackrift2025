@@ -1,3 +1,19 @@
+def test_get_route_with_external_data():
+    from features import get_route_with_external_data
+    import networkx as nx
+    G = nx.Graph()
+    G.add_edge('A', 'B', base_cost=10, weight=10)
+    G.add_edge('B', 'C', base_cost=5, weight=5)
+    nodes = {'A': (0, 0), 'B': (1, 1), 'C': (2, 2)}
+    external_data = {
+        'crowd_density': {'B': 2},
+        'weather': {'rain': True}
+    }
+    path = get_route_with_external_data(G, nodes, 'A', 'C', profile='safest', external_data=external_data)
+    print(f"Route with external data: {path}")
+    assert isinstance(path, list)
+    assert 'A' in path and 'C' in path
+    print("get_route_with_external_data test passed.")
 import networkx as nx
 from features import (
     explain_route, get_alternative_routes, accessibility_score, annotate_edges,
@@ -235,6 +251,8 @@ def test_get_route_multi_modal():
 
 
 if __name__ == "__main__":
+    print("\n--- Route with External Data Integration Demo ---")
+    test_get_route_with_external_data()
     print("\n--- Extensible Data Sources Demo ---")
     test_merge_external_data()
     test_explain_route()
