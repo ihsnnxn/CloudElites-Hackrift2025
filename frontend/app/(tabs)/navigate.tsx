@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { useColorScheme } from '@/hooks/use-color-scheme';
+import { Colors } from '@/constants/theme';
 import * as Speech from 'expo-speech';
 
 import { IconSymbol } from '@/components/ui/icon-symbol';
@@ -26,7 +28,9 @@ const directions = [
 
 export default function NavigateScreen() {
   const [speaking, setSpeaking] = useState(false);
-  const accent = useMemo(() => '#18B26B', []);
+  const theme = useColorScheme() ?? 'light';
+  const themeColors = Colors[theme];
+  const accent = useMemo(() => themeColors.progressFill, [themeColors]);
 
   const speakNext = (line: string) => {
     setSpeaking(true);
@@ -40,29 +44,29 @@ export default function NavigateScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <ThemedView style={styles.header}>
+      <ThemedView style={[styles.header, { backgroundColor: themeColors.cardSecondary, borderColor: themeColors.cardBorder }] }>
         <View style={{ flex: 1 }}>
           <ThemedText type="subtitle">Route to: Nearest MRT (wheelchair gate)</ThemedText>
-          <ThemedText style={styles.headerNote}>
+          <ThemedText style={[styles.headerNote, { color: themeColors.muted }] }>
             Smartphone sensors active • IoT on standby if GPS drifts
           </ThemedText>
         </View>
-        <View style={styles.badge}>
+        <View style={[styles.badge, { backgroundColor: themeColors.badge, borderColor: themeColors.badgeBorder }] }>
           <IconSymbol name="waveform.path" color={accent} size={18} />
-          <ThemedText style={styles.badgeText}>Live</ThemedText>
+          <ThemedText style={[styles.badgeText, { color: accent }]}>Live</ThemedText>
         </View>
       </ThemedView>
 
-      <ThemedView style={styles.mapCard}>
+      <ThemedView style={[styles.mapCard, { backgroundColor: themeColors.card, borderColor: themeColors.cardBorder }] }>
         <View style={styles.mapHeader}>
           <ThemedText type="defaultSemiBold">Map + hazard overlays</ThemedText>
           <View style={styles.legendRow}>
-            <Legend color="#18B26B" label="Safe" />
-            <Legend color="#F1C40F" label="Mild" />
-            <Legend color="#E74C3C" label="High" />
+            <Legend color={themeColors.progressFill} label="Safe" themeColors={themeColors} />
+            <Legend color={themeColors.infoBorder} label="Mild" themeColors={themeColors} />
+            <Legend color={themeColors.warningBorder} label="High" themeColors={themeColors} />
           </View>
         </View>
-        <View style={styles.mapFrame}>
+        <View style={[styles.mapFrame, { backgroundColor: themeColors.background, borderColor: themeColors.cardBorder }] }>
           {routeSegments.map((segment, idx) => (
             <View
               key={segment.id}
@@ -76,17 +80,17 @@ export default function NavigateScreen() {
               ]}
             />
           ))}
-          <View style={styles.positionDot} />
-          <View style={[styles.marker, { top: '15%', backgroundColor: '#E74C3C' }]} />
-          <View style={[styles.marker, { top: '45%', backgroundColor: '#F1C40F' }]} />
+          <View style={[styles.positionDot, { backgroundColor: themeColors.card, borderColor: themeColors.progressFill }]} />
+          <View style={[styles.marker, { top: '15%', backgroundColor: themeColors.warningBorder }]} />
+          <View style={[styles.marker, { top: '45%', backgroundColor: themeColors.infoBorder }]} />
         </View>
         <View style={styles.segmentRow}>
           {routeSegments.map((segment) => (
-            <View key={segment.id} style={styles.segmentChip}>
+            <View key={segment.id} style={[styles.segmentChip, { backgroundColor: themeColors.cardSecondary, borderColor: themeColors.cardBorder }] }>
               <View style={[styles.dot, { backgroundColor: segment.color }]} />
               <View style={{ flex: 1 }}>
                 <ThemedText type="defaultSemiBold">{segment.label}</ThemedText>
-                <ThemedText style={styles.muted}>{segment.distance}</ThemedText>
+                <ThemedText style={[styles.muted, { color: themeColors.muted }]}>{segment.distance}</ThemedText>
               </View>
             </View>
           ))}
@@ -95,15 +99,17 @@ export default function NavigateScreen() {
           <PrimaryButton
             label="Start navigation"
             onPress={() => speakNext('Starting accessible navigation. Ramp in 50 meters.')}
+            themeColors={themeColors}
           />
           <SecondaryButton
             label="Reroute on hazard"
             onPress={() => speakNext('Rerouting to avoid blocked ramp ahead.')}
+            themeColors={themeColors}
           />
         </View>
       </ThemedView>
 
-      <ThemedView style={styles.card}>
+      <ThemedView style={[styles.card, { backgroundColor: themeColors.card, borderColor: themeColors.cardBorder }] }>
         <ThemedText type="subtitle">Hazard alerts</ThemedText>
         <View style={{ gap: 10 }}>
           {hazardAlerts.map((hazard) => (
@@ -111,55 +117,57 @@ export default function NavigateScreen() {
               key={hazard.id}
               style={[
                 styles.alert,
-                hazard.severity === 'high' ? styles.alertHigh : styles.alertMedium,
+                hazard.severity === 'high'
+                  ? { backgroundColor: themeColors.warning, borderColor: themeColors.warningBorder }
+                  : { backgroundColor: themeColors.info, borderColor: themeColors.infoBorder },
               ]}>
               <IconSymbol
                 name="exclamationmark.triangle.fill"
-                color={hazard.severity === 'high' ? '#B02A2A' : '#B8860B'}
+                color={hazard.severity === 'high' ? themeColors.warningText : themeColors.infoText}
                 size={20}
               />
               <View style={{ flex: 1 }}>
                 <ThemedText type="defaultSemiBold">{hazard.title}</ThemedText>
-                <ThemedText style={styles.muted}>{hazard.distance}</ThemedText>
+                <ThemedText style={[styles.muted, { color: themeColors.muted }]}>{hazard.distance}</ThemedText>
               </View>
             </View>
           ))}
         </View>
       </ThemedView>
 
-      <ThemedView style={styles.card}>
+      <ThemedView style={[styles.card, { backgroundColor: themeColors.card, borderColor: themeColors.cardBorder }] }>
         <ThemedText type="subtitle">Step-by-step guidance</ThemedText>
         <View style={{ gap: 8 }}>
           {directions.map((step, idx) => (
-            <View key={step} style={styles.stepRow}>
-              <View style={styles.stepNumber}>
-                <ThemedText type="defaultSemiBold">{idx + 1}</ThemedText>
+            <View key={step} style={[styles.stepRow, { borderColor: themeColors.cardBorder }] }>
+              <View style={[styles.stepNumber, { backgroundColor: themeColors.progressTrack }] }>
+                <ThemedText type="defaultSemiBold" style={{ color: themeColors.text }}>{idx + 1}</ThemedText>
               </View>
-              <ThemedText style={{ flex: 1 }}>{step}</ThemedText>
-              <Pressable onPress={() => speakNext(step)} style={styles.speakButton}>
-                <IconSymbol name="paperplane.fill" color="#0B1A12" size={16} />
+              <ThemedText style={{ flex: 1, color: themeColors.text }}>{step}</ThemedText>
+              <Pressable onPress={() => speakNext(step)} style={[styles.speakButton, { backgroundColor: themeColors.badge, borderColor: themeColors.badgeBorder }] }>
+                <IconSymbol name="paperplane.fill" color={themeColors.text} size={16} />
               </Pressable>
             </View>
           ))}
         </View>
       </ThemedView>
 
-      <ThemedView style={styles.card}>
+      <ThemedView style={[styles.card, { backgroundColor: themeColors.card, borderColor: themeColors.cardBorder }] }>
         <ThemedText type="subtitle">Sensor feedback</ThemedText>
         <View style={styles.sensorRow}>
-          <SensorBar label="Tilt" value={12} unit="deg" color="#18B26B" />
-          <SensorBar label="Vibration" value={0.32} unit="g" color="#F39C12" />
-          <SensorBar label="GPS drift" value={2.5} unit="m" color="#3498DB" />
+          <SensorBar label="Tilt" value={12} unit="deg" color={themeColors.progressFill} themeColors={themeColors} />
+          <SensorBar label="Vibration" value={0.32} unit="g" color={themeColors.infoBorder} themeColors={themeColors} />
+          <SensorBar label="GPS drift" value={2.5} unit="m" color={themeColors.accent} themeColors={themeColors} />
         </View>
-        <ThemedText style={styles.muted}>
+        <ThemedText style={[styles.muted, { color: themeColors.muted }]}>
           Smartphone is primary. IoT IMU auto-enables if drift exceeds 5m.
         </ThemedText>
       </ThemedView>
 
-      <ThemedView style={styles.voiceCard}>
+      <ThemedView style={[styles.voiceCard, { backgroundColor: themeColors.card, borderColor: themeColors.cardBorder }] }>
         <View style={{ flex: 1, gap: 6 }}>
           <ThemedText type="defaultSemiBold">Voice guidance</ThemedText>
-          <ThemedText style={styles.muted}>
+          <ThemedText style={[styles.muted, { color: themeColors.muted }]}>
             Tap to narrate the next maneuver with high-contrast visual cues.
           </ThemedText>
         </View>
@@ -167,42 +175,43 @@ export default function NavigateScreen() {
           compact
           label={speaking ? 'Speaking…' : 'Play'}
           onPress={() => speakNext('Steady slope ahead. Slight vibration. Continue 80 meters.')}
+          themeColors={themeColors}
         />
       </ThemedView>
     </ScrollView>
   );
 }
 
-const PrimaryButton = ({ label, onPress, compact }: { label: string; onPress: () => void; compact?: boolean }) => (
-  <Pressable onPress={onPress} style={({ pressed }) => [styles.primaryBtn, compact && styles.compactBtn, pressed && styles.pressed]}>
+const PrimaryButton = ({ label, onPress, compact, themeColors }: { label: string; onPress: () => void; compact?: boolean; themeColors: any }) => (
+  <Pressable onPress={onPress} style={({ pressed }) => [styles.primaryBtn, compact && styles.compactBtn, { backgroundColor: themeColors.accent, borderColor: themeColors.accent }, pressed && styles.pressed]}>
     <ThemedText type="defaultSemiBold" style={{ color: '#0B1A12' }}>
       {label}
     </ThemedText>
   </Pressable>
 );
 
-const SecondaryButton = ({ label, onPress }: { label: string; onPress: () => void }) => (
-  <Pressable onPress={onPress} style={({ pressed }) => [styles.secondaryBtn, pressed && styles.pressed]}>
-    <ThemedText type="defaultSemiBold" style={{ color: '#0FA958' }}>
+const SecondaryButton = ({ label, onPress, themeColors }: { label: string; onPress: () => void; themeColors: any }) => (
+  <Pressable onPress={onPress} style={({ pressed }) => [styles.secondaryBtn, { backgroundColor: themeColors.cardTertiary, borderColor: themeColors.accent }, pressed && styles.pressed]}>
+    <ThemedText type="defaultSemiBold" style={{ color: themeColors.accent }}>
       {label}
     </ThemedText>
   </Pressable>
 );
 
-const Legend = ({ color, label }: { color: string; label: string }) => (
+const Legend = ({ color, label, themeColors }: { color: string; label: string; themeColors: any }) => (
   <View style={styles.legend}>
     <View style={[styles.dot, { backgroundColor: color }]} />
-    <ThemedText style={styles.muted}>{label}</ThemedText>
+    <ThemedText style={[styles.muted, { color: themeColors.muted }]}>{label}</ThemedText>
   </View>
 );
 
-const SensorBar = ({ label, value, unit, color }: { label: string; value: number; unit: string; color: string }) => (
+const SensorBar = ({ label, value, unit, color, themeColors }: { label: string; value: number; unit: string; color: string; themeColors: any }) => (
   <View style={{ flex: 1, gap: 4 }}>
     <ThemedText type="defaultSemiBold">{label}</ThemedText>
-    <View style={styles.progressTrack}>
+    <View style={[styles.progressTrack, { backgroundColor: themeColors.progressTrack }] }>
       <View style={[styles.progressFill, { backgroundColor: color, width: `${Math.min(100, value * 10)}%` }]} />
     </View>
-    <ThemedText style={styles.muted}>
+    <ThemedText style={[styles.muted, { color: themeColors.muted }]}>
       {value} {unit}
     </ThemedText>
   </View>
@@ -219,13 +228,11 @@ const styles = StyleSheet.create({
     gap: 12,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#E6ECF1',
     padding: 14,
-    backgroundColor: '#F7FBFF',
   },
   headerNote: {
-    color: '#4D5B66',
     marginTop: 4,
+    // color is set dynamically
   },
   badge: {
     flexDirection: 'row',
@@ -234,19 +241,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 999,
-    backgroundColor: '#E6FFF2',
     borderWidth: 1,
-    borderColor: '#B8F2CF',
   },
   badgeText: {
-    color: '#0FA958',
     fontWeight: '700',
+    // color is set dynamically
   },
   mapCard: {
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#E6ECF1',
-    backgroundColor: '#FFFFFF',
     padding: 14,
     gap: 12,
   },
@@ -267,9 +270,7 @@ const styles = StyleSheet.create({
   mapFrame: {
     height: 200,
     borderRadius: 12,
-    backgroundColor: '#0C1D13',
     borderWidth: 1,
-    borderColor: '#183624',
     overflow: 'hidden',
     justifyContent: 'center',
   },
@@ -283,9 +284,7 @@ const styles = StyleSheet.create({
     width: 14,
     height: 14,
     borderRadius: 14,
-    backgroundColor: '#FFFFFF',
     borderWidth: 2,
-    borderColor: '#18B26B',
     alignSelf: 'center',
   },
   marker: {
@@ -306,9 +305,7 @@ const styles = StyleSheet.create({
     gap: 8,
     padding: 10,
     borderRadius: 12,
-    backgroundColor: '#F7FBFF',
     borderWidth: 1,
-    borderColor: '#E6ECF1',
     flex: 1,
     minWidth: 140,
   },
@@ -323,20 +320,16 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   primaryBtn: {
-    backgroundColor: '#6CF2AA',
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#6CF2AA',
   },
   secondaryBtn: {
-    backgroundColor: '#0F2418',
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#1B4730',
   },
   pressed: {
     opacity: 0.8,
@@ -344,8 +337,6 @@ const styles = StyleSheet.create({
   card: {
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#E6ECF1',
-    backgroundColor: '#FFFFFF',
     padding: 14,
     gap: 12,
   },
@@ -357,16 +348,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
   },
-  alertHigh: {
-    backgroundColor: '#FFEDEC',
-    borderColor: '#F5C2BF',
-  },
-  alertMedium: {
-    backgroundColor: '#FFF8E6',
-    borderColor: '#F6DC9F',
-  },
   muted: {
-    color: '#55636E',
+    // color is set dynamically
   },
   stepRow: {
     flexDirection: 'row',
@@ -374,23 +357,19 @@ const styles = StyleSheet.create({
     gap: 10,
     padding: 10,
     borderWidth: 1,
-    borderColor: '#E6ECF1',
     borderRadius: 10,
   },
   stepNumber: {
     width: 28,
     height: 28,
     borderRadius: 8,
-    backgroundColor: '#ECF4FF',
     alignItems: 'center',
     justifyContent: 'center',
   },
   speakButton: {
-    backgroundColor: '#E6FFF2',
     padding: 8,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#B8F2CF',
   },
   sensorRow: {
     flexDirection: 'row',
@@ -400,7 +379,6 @@ const styles = StyleSheet.create({
   progressTrack: {
     height: 8,
     borderRadius: 6,
-    backgroundColor: '#ECF4FF',
     overflow: 'hidden',
   },
   progressFill: {
@@ -410,9 +388,7 @@ const styles = StyleSheet.create({
   voiceCard: {
     borderRadius: 14,
     padding: 14,
-    backgroundColor: '#0B1A12',
     borderWidth: 1,
-    borderColor: '#123824',
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,

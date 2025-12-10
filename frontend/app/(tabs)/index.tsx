@@ -1,5 +1,7 @@
 import { useMemo } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { useColorScheme } from '@/hooks/use-color-scheme';
+import { Colors } from '@/constants/theme';
 
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { ThemedText } from '@/components/themed-text';
@@ -13,7 +15,9 @@ const quickStats = [
 ];
 
 export default function HomeScreen() {
-  const accent = useMemo(() => '#0FA958', []);
+  const theme = useColorScheme() ?? 'light';
+  const themeColors = Colors[theme];
+  const accent = useMemo(() => themeColors.accent, [themeColors]);
 
   const ActionButton = ({
     title,
@@ -49,19 +53,19 @@ export default function HomeScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <ThemedView style={styles.hero}>
+      <ThemedView style={[styles.hero, { backgroundColor: themeColors.card, borderColor: themeColors.cardBorder }] }>
         <View style={styles.heroHeader}>
           <ThemedText type="title">AccessNowSG</ThemedText>
           <View style={styles.pillRow}>
-            <View style={[styles.pill, { backgroundColor: '#102A1C' }]}>
-              <ThemedText style={styles.pillText}>Smartphone primary</ThemedText>
+            <View style={[styles.pill, { backgroundColor: themeColors.cardSecondary }]}> 
+              <ThemedText style={[styles.pillText, { color: themeColors.muted }]}>Smartphone primary</ThemedText>
             </View>
-            <View style={[styles.pill, { backgroundColor: '#1F3B2A' }]}>
-              <ThemedText style={styles.pillText}>IoT backup ready</ThemedText>
+            <View style={[styles.pill, { backgroundColor: themeColors.cardTertiary }]}> 
+              <ThemedText style={[styles.pillText, { color: themeColors.muted }]}>IoT backup ready</ThemedText>
             </View>
           </View>
         </View>
-        <ThemedText style={styles.subtitle}>
+        <ThemedText style={[styles.subtitle, { color: themeColors.muted }] }>
           Wheelchair-user–verified routes with hazard-aware guidance.
         </ThemedText>
         <View style={styles.actionsRow}>
@@ -76,27 +80,27 @@ export default function HomeScreen() {
             onPress={() => router.push('/report')}
           />
         </View>
-        <ThemedView style={[styles.banner, { borderColor: accent }]}>
+        <ThemedView style={[styles.banner, { borderColor: accent, backgroundColor: themeColors.cardTertiary }]}> 
           <IconSymbol name="exclamationmark.triangle.fill" color={accent} size={22} />
           <View style={{ flex: 1 }}>
             <ThemedText type="defaultSemiBold">Demo-ready reroute</ThemedText>
-            <ThemedText style={styles.bannerText}>
+            <ThemedText style={[styles.bannerText, { color: themeColors.muted }] }>
               Preload a photo or sensor event to trigger a live reroute mid-demo.
             </ThemedText>
           </View>
         </ThemedView>
       </ThemedView>
 
-      <ThemedView style={styles.card}>
+      <ThemedView style={[styles.card, { backgroundColor: themeColors.card, borderColor: themeColors.cardBorder }] }>
         <ThemedText type="subtitle">Live status</ThemedText>
         <View style={styles.statsRow}>
           {quickStats.map((item) => (
-            <View key={item.label} style={styles.stat}>
+            <View key={item.label} style={[styles.stat, { backgroundColor: themeColors.cardTertiary, borderColor: themeColors.cardBorder }] }>
               <ThemedText type="title" style={{ color: accent }}>
                 {item.value}
               </ThemedText>
-              <ThemedText style={styles.statLabel}>{item.suffix}</ThemedText>
-              <ThemedText type="defaultSemiBold" style={styles.statFooter}>
+              <ThemedText style={[styles.statLabel, { color: themeColors.muted }] }>{item.suffix}</ThemedText>
+              <ThemedText type="defaultSemiBold" style={[styles.statFooter, { color: themeColors.text }] }>
                 {item.label}
               </ThemedText>
             </View>
@@ -104,23 +108,26 @@ export default function HomeScreen() {
         </View>
       </ThemedView>
 
-      <ThemedView style={styles.card}>
+      <ThemedView style={[styles.card, { backgroundColor: themeColors.card, borderColor: themeColors.cardBorder }] }>
         <ThemedText type="subtitle">Quick actions</ThemedText>
         <View style={styles.quickList}>
           <ListItem
             title="View map & alerts"
             detail="See safe paths, hazards, and sensor-based reroutes."
             onPress={() => router.push('/navigate')}
+            themeColors={themeColors}
           />
           <ListItem
             title="Report hazard in 2 taps"
             detail="Snap a photo, add a short note, and upload."
             onPress={() => router.push('/report')}
+            themeColors={themeColors}
           />
           <ListItem
             title="Check your points"
             detail="Passive movement + submissions update live."
             onPress={() => router.push('/rewards')}
+            themeColors={themeColors}
           />
         </View>
       </ThemedView>
@@ -132,17 +139,19 @@ const ListItem = ({
   title,
   detail,
   onPress,
+  themeColors,
 }: {
   title: string;
   detail: string;
   onPress: () => void;
+  themeColors: any;
 }) => (
-  <Pressable onPress={onPress} style={({ pressed }) => [styles.listItem, pressed && styles.listItemPressed]}>
+  <Pressable onPress={onPress} style={({ pressed }) => [styles.listItem, { backgroundColor: themeColors.cardSecondary, borderColor: themeColors.cardBorder }, pressed && styles.listItemPressed] }>
     <View style={{ flex: 1 }}>
-      <ThemedText type="defaultSemiBold">{title}</ThemedText>
-      <ThemedText style={styles.listDetail}>{detail}</ThemedText>
+      <ThemedText type="defaultSemiBold" style={{ color: themeColors.text }}>{title}</ThemedText>
+      <ThemedText style={[styles.listDetail, { color: themeColors.muted }]}>{detail}</ThemedText>
     </View>
-    <IconSymbol name="chevron.right" color="#8E9BA0" size={22} />
+    <IconSymbol name="chevron.right" color={themeColors.icon} size={22} />
   </Pressable>
 );
 
@@ -154,16 +163,14 @@ const styles = StyleSheet.create({
   hero: {
     borderRadius: 16,
     padding: 16,
-    backgroundColor: '#0B1A12',
     borderWidth: 1,
-    borderColor: '#123824',
     gap: 12,
   },
   heroHeader: {
     gap: 8,
   },
   subtitle: {
-    color: '#C8E6D2',
+    // color is set dynamically
   },
   actionsRow: {
     flexDirection: 'row',
@@ -209,18 +216,15 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 12,
     padding: 12,
-    backgroundColor: '#0F2418',
     alignItems: 'center',
   },
   bannerText: {
-    color: '#E3F8EB',
+    // color is set dynamically
   },
   card: {
     borderRadius: 14,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#E6ECF1',
-    backgroundColor: '#FFFFFF',
     gap: 12,
   },
   statsRow: {
@@ -232,17 +236,15 @@ const styles = StyleSheet.create({
     minWidth: 100,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#E6ECF1',
     padding: 12,
-    backgroundColor: '#F8FBF9',
     gap: 2,
   },
   statLabel: {
-    color: '#4D6555',
+    // color is set dynamically
   },
   statFooter: {
-    color: '#1F3628',
     marginTop: 2,
+    // color is set dynamically
   },
   quickList: {
     gap: 8,
@@ -251,17 +253,15 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#E6ECF1',
-    backgroundColor: '#F7FBFF',
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
   },
   listItemPressed: {
-    backgroundColor: '#ECF4FF',
+    opacity: 0.9,
   },
   listDetail: {
-    color: '#51606C',
     marginTop: 2,
+    // color is set dynamically
   },
 });
