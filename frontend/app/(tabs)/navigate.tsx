@@ -1,8 +1,10 @@
-import { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Colors } from '@/constants/theme';
 import * as Speech from 'expo-speech';
+import useLocation from '@/hooks/useLocation';
+import useSensorData from '@/hooks/useSensorData';
 
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { ThemedText } from '@/components/themed-text';
@@ -41,6 +43,18 @@ export default function NavigateScreen() {
       onError: () => setSpeaking(false),
     });
   };
+
+  // sensors & location
+  const { location, distance, errorMsg, startTracking, isTracking } = useLocation();
+  const { vibration, tilt, accelerometer, gyroscope } = useSensorData();
+
+  // start on mount
+  useEffect(() => {
+    (async () => {
+      const ok = await startTracking();
+      // startSensors handled in hook's effect
+    })();
+  }, []);
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
@@ -155,13 +169,16 @@ export default function NavigateScreen() {
       <ThemedView style={[styles.card, { backgroundColor: themeColors.card, borderColor: themeColors.cardBorder }] }>
         <ThemedText type="subtitle">Sensor feedback</ThemedText>
         <View style={styles.sensorRow}>
-          <SensorBar label="Tilt" value={12} unit="deg" color={themeColors.progressFill} themeColors={themeColors} />
-          <SensorBar label="Vibration" value={0.32} unit="g" color={themeColors.infoBorder} themeColors={themeColors} />
-          <SensorBar label="GPS drift" value={2.5} unit="m" color={themeColors.accent} themeColors={themeColors} />
+          <SensorBar label="Tilt" value={tilt} unit="deg" color={themeColors.progressFill} themeColors={themeColors} />
+          <SensorBar label="Vibration" value={vibration} unit="g" color={themeColors.infoBorder} themeColors={themeColors} />
+          <SensorBar label="GPS accuracy" value={location?.accuracy ?? 0} unit="m" color={themeColors.accent} themeColors={themeColors} />
         </View>
-        <ThemedText style={[styles.muted, { color: themeColors.muted }]}>
-          Smartphone is primary. IoT IMU auto-enables if drift exceeds 5m.
+        <ThemedText style={[styles.muted, { color: themeColors.muted }]}> 
+          Smartphone is primary. IoT IMU auto-enables if drift exceeds 5m. Distance: {(distance).toFixed(1)} m
         </ThemedText>
+        <ThemedText style={[styles.muted, { color: themeColors.muted, marginTop: 8 }]}>Location: {location ? `${location.latitude.toFixed(5)}, ${location.longitude.toFixed(5)}` : (isTracking ? 'Acquiring GPS...' : 'GPS inactive')}</ThemedText>
+        <ThemedText style={[styles.muted, { color: themeColors.muted }]}>Accel: x:{accelerometer.x.toFixed(2)} y:{accelerometer.y.toFixed(2)} z:{accelerometer.z.toFixed(2)}</ThemedText>
+        <ThemedText style={[styles.muted, { color: themeColors.muted }]}>Gyro: x:{gyroscope.x.toFixed(2)} y:{gyroscope.y.toFixed(2)} z:{gyroscope.z.toFixed(2)}</ThemedText>
       </ThemedView>
 
       <ThemedView style={[styles.voiceCard, { backgroundColor: themeColors.card, borderColor: themeColors.cardBorder }] }>
