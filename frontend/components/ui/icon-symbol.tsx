@@ -23,6 +23,7 @@ const MAPPING = {
   'trophy.fill': 'emoji-events',
   'exclamationmark.triangle.fill': 'warning',
   'waveform.path': 'graphic-eq',
+  'antenna.radiowaves.left.and.right': 'bluetooth',
 } as IconMapping;
 
 /**

@@ -24,10 +24,10 @@ export default function LogConsole() {
       <View style={{ marginTop: 10 }}>
         {logMessages.length > 0 ? (
           logMessages.map((msg, index) => (
-            <Text key={index} style={{ marginBottom: 5 }}>{JSON.stringify(msg)}</Text>
+            <ThemedText key={index} style={{ marginBottom: 5 }}>{JSON.stringify(msg)}</ThemedText>
           ))
         ) : (
-          <Text>Waiting for data...</Text>
+          <ThemedText type="default">Waiting for data...</ThemedText>
         )}
       </View>
     </ScrollView>
