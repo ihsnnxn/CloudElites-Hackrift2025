@@ -24,6 +24,7 @@ const MAPPING = {
   'exclamationmark.triangle.fill': 'warning',
   'waveform.path': 'graphic-eq',
   'antenna.radiowaves.left.and.right': 'bluetooth',
+  'person.2.fill': 'group',
 } as IconMapping;
 
 /**

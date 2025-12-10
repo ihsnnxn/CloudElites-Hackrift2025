@@ -46,10 +46,10 @@ export default function RewardsScreen() {
           </ThemedText>
         </View>
         <View style={[styles.scoreBubble, { backgroundColor: themeColors.accent, borderColor: themeColors.accent }] }>
-          <ThemedText type="title" style={{ color: theme === 'dark' ? '#0B1A12' : '#0B1A12' }}>
+          <ThemedText type="title" style={{ color: themeColors.text }}>
             {points}
           </ThemedText>
-          <ThemedText style={{ color: theme === 'dark' ? '#0B1A12' : '#0B1A12' }}>pts</ThemedText>
+          <ThemedText style={{ color: themeColors.text }}>pts</ThemedText>
         </View>
       </ThemedView>
 
@@ -61,7 +61,7 @@ export default function RewardsScreen() {
           <Stat title="Hazard submissions" value={hazardPoints} color="#E67E22" note="+25 per submit" themeColors={themeColors} />
         </View>
         <Pressable onPress={incrementHazard} style={({ pressed }) => [styles.primaryBtn, { backgroundColor: themeColors.accent, borderColor: themeColors.accent }, pressed && styles.pressed]}>
-          <ThemedText type="defaultSemiBold" style={{ color: '#0B1A12' }}>
+          <ThemedText type="defaultSemiBold" style={{ color: themeColors.text }}>
             Add demo submission (+25 pts)
           </ThemedText>
         </Pressable>
@@ -72,7 +72,7 @@ export default function RewardsScreen() {
         <View style={styles.badgeGrid}>
           {badgeList.map((badge) => (
             <View key={badge.id} style={[styles.badgeItem, { backgroundColor: themeColors.cardSecondary, borderColor: themeColors.cardBorder }] }>
-              <IconSymbol name="trophy.fill" color="#F1C40F" size={22} />
+              <IconSymbol name="trophy.fill" color={themeColors.progressFill} size={22} />
               <ThemedText type="defaultSemiBold">{badge.label}</ThemedText>
               <ThemedText style={[styles.muted, { color: themeColors.muted }]}>{badge.points} pts</ThemedText>
             </View>

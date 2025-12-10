@@ -13,15 +13,18 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 
-const routeSegments = [
-  { id: 'seg-1', label: 'Ramp access', color: '#18B26B', distance: '120m' },
-  { id: 'seg-2', label: 'Mild slope', color: '#F1C40F', distance: '80m' },
-  { id: 'seg-3', label: 'Rough paving', color: '#E74C3C', distance: '40m' },
+type SegmentColorKey = 'progressFill' | 'infoBorder' | 'warningBorder';
+const routeSegments: { id: string; label: string; colorKey: SegmentColorKey; distance: string }[] = [
+  { id: 'seg-1', label: 'Ramp access', colorKey: 'progressFill', distance: '120m' },
+  { id: 'seg-2', label: 'Mild slope', colorKey: 'infoBorder', distance: '80m' },
+  { id: 'seg-3', label: 'Rough paving', colorKey: 'warningBorder', distance: '40m' },
 ];
 
+// Simulated hazard markers with coordinates
 const hazardAlerts = [
-  { id: 'haz-1', title: 'Temporary bin blocking ramp', severity: 'high', distance: '60m ahead' },
-  { id: 'haz-2', title: 'Slight vibration on tiles', severity: 'medium', distance: '120m ahead' },
+  { id: 'haz-1', title: 'Temporary bin blocking ramp', severity: 'high', distance: '60m ahead', lat: 1.29035, lng: 103.85205 },
+  { id: 'haz-2', title: 'Slight vibration on tiles', severity: 'mild', distance: '120m ahead', lat: 1.29045, lng: 103.85215 },
+  { id: 'haz-3', title: 'Safe path ahead', severity: 'safe', distance: '180m ahead', lat: 1.29055, lng: 103.85225 },
 ];
 
 const directions = [
@@ -134,34 +137,34 @@ export default function NavigateScreen() {
             <Legend color={themeColors.infoBorder} label="Mild" themeColors={themeColors} />
             <Legend color={themeColors.warningBorder} label="High" themeColors={themeColors} />
           </View>
-          {/* Map provider toggle */}
-          <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
-            <Pressable
-              onPress={() => setMapProvider('google')}
-              style={({ pressed }) => [
-                { padding: 8, borderRadius: 8, borderWidth: 1, borderColor: mapProvider === 'google' ? themeColors.accent : themeColors.cardBorder, backgroundColor: mapProvider === 'google' ? themeColors.accent : themeColors.cardSecondary, marginRight: 4 },
-                pressed && { opacity: 0.8 },
-              ]}
-              accessibilityRole="button"
-              accessibilityState={{ selected: mapProvider === 'google' }}
-            >
-              <Text style={{ color: mapProvider === 'google' ? '#0B1A12' : themeColors.text }}>Google Maps</Text>
-            </Pressable>
-            <Pressable
-              onPress={() => setMapProvider('onemap')}
-              style={({ pressed }) => [
-                { padding: 8, borderRadius: 8, borderWidth: 1, borderColor: mapProvider === 'onemap' ? themeColors.accent : themeColors.cardBorder, backgroundColor: mapProvider === 'onemap' ? themeColors.accent : themeColors.cardSecondary },
-                pressed && { opacity: 0.8 },
-              ]}
-              accessibilityRole="button"
-              accessibilityState={{ selected: mapProvider === 'onemap' }}
-            >
-              <Text style={{ color: mapProvider === 'onemap' ? '#0B1A12' : themeColors.text }}>OneMap SG</Text>
-            </Pressable>
-          </View>
+        </View>
+        {/* Map provider toggle */}
+        <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
+          <Pressable
+            onPress={() => setMapProvider('google')}
+            style={({ pressed }) => [
+              { flex: 1, padding: 10, borderRadius: 8, borderWidth: 1, borderColor: mapProvider === 'google' ? themeColors.accent : themeColors.cardBorder, backgroundColor: mapProvider === 'google' ? themeColors.accent : themeColors.cardSecondary, alignItems: 'center' },
+              pressed && { opacity: 0.8 },
+            ]}
+            accessibilityRole="button"
+            accessibilityState={{ selected: mapProvider === 'google' }}
+          >
+            <Text style={{ color: mapProvider === 'google' ? '#0B1A12' : themeColors.text, fontWeight: '600' }}>Google Maps</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => setMapProvider('onemap')}
+            style={({ pressed }) => [
+              { flex: 1, padding: 10, borderRadius: 8, borderWidth: 1, borderColor: mapProvider === 'onemap' ? themeColors.accent : themeColors.cardBorder, backgroundColor: mapProvider === 'onemap' ? themeColors.accent : themeColors.cardSecondary, alignItems: 'center' },
+              pressed && { opacity: 0.8 },
+            ]}
+            accessibilityRole="button"
+            accessibilityState={{ selected: mapProvider === 'onemap' }}
+          >
+            <Text style={{ color: mapProvider === 'onemap' ? '#0B1A12' : themeColors.text, fontWeight: '600' }}>OneMap SG</Text>
+          </Pressable>
         </View>
         {/* Map area: Google or OneMap */}
-        <View style={[styles.mapFrame, { backgroundColor: themeColors.background, borderColor: themeColors.cardBorder }] }>
+        <View style={[styles.mapFrame, { backgroundColor: themeColors.background, borderColor: themeColors.cardBorder, height: 300 }] }>
           {loading ? (
             <ActivityIndicator size="large" color={themeColors.accent} style={{ flex: 1, alignSelf: 'center' }} />
           ) : error ? (
@@ -171,17 +174,90 @@ export default function NavigateScreen() {
               </ThemedText>
             </View>
           ) : mapProvider === 'onemap' ? (
-            <WebView
-              style={{ flex: 1, borderRadius: 12 }}
-              source={{
-                html: `<!DOCTYPE html><html><head><meta name='viewport' content='width=device-width, initial-scale=1.0'><style>html,body,#map{height:100%;margin:0;padding:0;}#map{height:100vh;width:100vw;}</style></head><body><div id='map'></div><script src='https://maps.onemap.sg/leaflet/onemap-leaflet.js'></script><link rel='stylesheet' href='https://maps.onemap.sg/leaflet/onemap-leaflet.css'/><script>var map = L.map('map').setView([${routeCoords[0]?.latitude || 1.29027},${routeCoords[0]?.longitude || 103.851959}], 17);L.tileLayer('https://maps.onemap.sg/tiles/1.0.0/default/{z}/{x}/{y}.png', {maxZoom: 18,attribution: 'Map data © contributors, OneMap SG'}).addTo(map);var route = L.polyline([${oneMapRouteJS}], {color:'#007AFF',weight:4}).addTo(map);</script></body></html>`
-              }}
-              originWhitelist={["*"]}
-              javaScriptEnabled
-              domStorageEnabled
-              automaticallyAdjustContentInsets={false}
-              scrollEnabled={false}
-            />
+            (() => {
+              // Prepare hazard markers with color coding
+              const hazardsMarkersJS = hazardAlerts.map((hazard) => {
+                const color = hazard.severity === 'safe' ? 'green' : hazard.severity === 'mild' ? 'orange' : 'red';
+                const iconVar = 'icon_' + hazard.id.replace(/-/g, '_');
+                const title = hazard.title.replace(/'/g, "\\'");
+                const severityUpper = hazard.severity.toUpperCase();
+                
+                return `var ${iconVar} = L.divIcon({
+  className: 'custom-marker',
+  html: '<div style="background-color: ${color}; width: 20px; height: 20px; border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>',
+  iconSize: [20, 20]
+});
+L.marker([${hazard.lat}, ${hazard.lng}], {icon: ${iconVar}})
+  .addTo(map)
+  .bindPopup('<b>${title}</b><br>Severity: <span style="color: ${color}; font-weight: bold;">${severityUpper}</span>');`;
+              }).join('\n');
+              
+              const centerLat = routeCoords[0]?.latitude || 1.29027;
+              const centerLng = routeCoords[0]?.longitude || 103.851959;
+              
+              const html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    html, body { height: 100%; margin: 0; padding: 0; }
+    #map { height: 100%; width: 100%; }
+    .custom-marker { background: none; border: none; }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    window.onload = function() {
+      try {
+        var map = L.map('map', {
+          zoomControl: true,
+          scrollWheelZoom: true,
+          doubleClickZoom: true,
+          touchZoom: true
+        }).setView([${centerLat}, ${centerLng}], 18);
+        L.tileLayer('https://www.onemap.gov.sg/maps/tiles/Default_HD/{z}/{x}/{y}.png', {
+          detectRetina: true,
+          maxZoom: 19,
+          minZoom: 11,
+          attribution: '<img src="https://www.onemap.gov.sg/web-assets/images/logo/om_logo.png" style="height:20px;width:20px;"/> <a href="https://www.onemap.gov.sg/" target="_blank">OneMap</a> © contributors | <a href="https://www.sla.gov.sg/" target="_blank">Singapore Land Authority</a>'
+        }).addTo(map);
+        
+        ${routeCoords.length > 0 ? `var route = L.polyline([${oneMapRouteJS}], {color:'#007AFF',weight:4}).addTo(map);` : ''}
+        
+        ${hazardsMarkersJS}
+        
+        console.log('OneMap loaded successfully');
+      } catch(e) {
+        console.error('Error loading map:', e);
+        document.body.innerHTML = '<div style="padding:20px;color:red;">Error loading map: ' + e.message + '</div>';
+      }
+    };
+  </script>
+</body>
+</html>`;
+              return (
+                <WebView
+                  style={{ flex: 1, borderRadius: 12, height: 300 }}
+                  source={{ html }}
+                  originWhitelist={["*"]}
+                  javaScriptEnabled
+                  domStorageEnabled
+                  automaticallyAdjustContentInsets={false}
+                  scrollEnabled={false}
+                  onError={(syntheticEvent) => {
+                    const { nativeEvent } = syntheticEvent;
+                    console.warn('WebView error: ', nativeEvent);
+                  }}
+                  onMessage={(event) => {
+                    console.log('WebView message:', event.nativeEvent.data);
+                  }}
+                />
+              );
+            })()
           ) : Platform.OS === 'web' && mapProvider === 'google' ? (
             <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
               <ThemedText type="defaultSemiBold" style={{ color: themeColors.info }}>
@@ -189,14 +265,14 @@ export default function NavigateScreen() {
               </ThemedText>
             </View>
           ) : (
-            <NativeMap routeCoords={routeCoords} initialRegion={initialRegion} themeColors={themeColors} />
+            <NativeMap routeCoords={routeCoords} initialRegion={initialRegion} themeColors={themeColors} hazards={hazardAlerts} />
           )}
         </View>
         {/* ...existing segmentRow and mapActions... */}
         <View style={styles.segmentRow}>
           {routeSegments.map((segment) => (
             <View key={segment.id} style={[styles.segmentChip, { backgroundColor: themeColors.cardSecondary, borderColor: themeColors.cardBorder }] }>
-              <View style={[styles.dot, { backgroundColor: segment.color }]} />
+              <View style={[styles.dot, { backgroundColor: themeColors[segment.colorKey] }]} />
               <View style={{ flex: 1 }}>
                 <ThemedText type="defaultSemiBold">{segment.label}</ThemedText>
                 <ThemedText style={[styles.muted, { color: themeColors.muted }]}>{segment.distance}</ThemedText>
@@ -296,7 +372,7 @@ export default function NavigateScreen() {
 
 const PrimaryButton = ({ label, onPress, compact, themeColors }: { label: string; onPress: () => void; compact?: boolean; themeColors: any }) => (
   <Pressable onPress={onPress} style={({ pressed }) => [styles.primaryBtn, compact && styles.compactBtn, { backgroundColor: themeColors.accent, borderColor: themeColors.accent }, pressed && styles.pressed]}>
-    <ThemedText type="defaultSemiBold" style={{ color: '#0B1A12' }}>
+    <ThemedText type="defaultSemiBold" style={{ color: themeColors.text }}>
       {label}
     </ThemedText>
   </Pressable>

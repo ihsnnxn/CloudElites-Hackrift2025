@@ -72,7 +72,7 @@ export default function ReportScreen() {
           </View>
         )}
         <Pressable onPress={requestAndCapture} style={({ pressed }) => [styles.primaryBtn, { backgroundColor: themeColors.accent, borderColor: themeColors.accent }, pressed && styles.pressed]}>
-          <ThemedText type="defaultSemiBold" style={{ color: '#0B1A12' }}>
+          <ThemedText type="defaultSemiBold" style={{ color: themeColors.text }}>
             {photoUri ? 'Retake photo' : 'Capture hazard'}
           </ThemedText>
         </Pressable>
@@ -113,7 +113,7 @@ export default function ReportScreen() {
               { backgroundColor: themeColors.accent, borderColor: themeColors.accent },
               (pressed || uploading) && styles.pressed,
             ]}>
-            <ThemedText type="defaultSemiBold" style={{ color: '#0B1A12' }}>
+            <ThemedText type="defaultSemiBold" style={{ color: themeColors.text }}>
               {uploading ? 'Uploading…' : 'Submit'}
             </ThemedText>
           </Pressable>

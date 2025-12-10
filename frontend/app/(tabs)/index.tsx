@@ -35,16 +35,19 @@ export default function HomeScreen() {
         onPress={onPress}
         style={({ pressed }) => [
           styles.actionButton,
-          isPrimary ? styles.primaryButton : styles.secondaryButton,
+          {
+            backgroundColor: isPrimary ? themeColors.accent : themeColors.cardTertiary,
+            borderColor: isPrimary ? themeColors.accent : themeColors.cardBorder,
+          },
           pressed && styles.buttonPressed,
         ]}>
         <IconSymbol
           name={isPrimary ? 'paperplane.fill' : 'camera.fill'}
           size={22}
-          color={isPrimary ? '#0B1A12' : '#0FA958'}
+          color={isPrimary ? themeColors.text : themeColors.accent}
           style={{ marginRight: 8 }}
         />
-        <ThemedText type="defaultSemiBold" style={{ color: isPrimary ? '#0B1A12' : '#0FA958' }}>
+        <ThemedText type="defaultSemiBold" style={{ color: isPrimary ? themeColors.text : themeColors.accent }}>
           {title}
         </ThemedText>
       </Pressable>
@@ -185,14 +188,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
   },
-  primaryButton: {
-    backgroundColor: '#6CF2AA',
-    borderColor: '#6CF2AA',
-  },
-  secondaryButton: {
-    backgroundColor: '#0F2418',
-    borderColor: '#1B4730',
-  },
+  // Removed primaryButton and secondaryButton, now handled inline with themeColors
   buttonPressed: {
     opacity: 0.8,
   },
@@ -207,8 +203,8 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   pillText: {
-    color: '#C8E6D2',
     fontSize: 12,
+    // color is set dynamically
   },
   banner: {
     flexDirection: 'row',
