@@ -1,8 +1,11 @@
 {
   "dependencies": {
+    "expo": "^54.0.27",
     "react-native-ble-plx": "^2.0.3"
   },
   "devDependencies": {
-    "@config-plugins/react-native-ble-plx": "^7.0.0"
+    "@config-plugins/react-native-ble-plx": "^7.0.0",
+    "@types/react": "~19.1.10",
+    "typescript": "~5.9.2"
   }
 }

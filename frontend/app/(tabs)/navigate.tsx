@@ -1,5 +1,8 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Pressable, ScrollView, StyleSheet, View, Text, ActivityIndicator, Platform } from 'react-native';
+import { NativeMap } from '@/components/NativeMap';
+import { WebView } from 'react-native-webview';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Colors } from '@/constants/theme';
 import * as Speech from 'expo-speech';
@@ -28,8 +31,54 @@ const directions = [
   'Turn right at sheltered walkway.',
 ];
 
+
 export default function NavigateScreen() {
   const [speaking, setSpeaking] = useState(false);
+  const [mapProvider, setMapProvider] = useState<'google' | 'onemap'>('google');
+  const [routeCoords, setRouteCoords] = useState<{ latitude: number; longitude: number }[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  // Load map provider preference on mount
+  useEffect(() => {
+    (async () => {
+      const pref = await AsyncStorage.getItem('mapProvider');
+      if (pref === 'google' || pref === 'onemap') setMapProvider(pref);
+    })();
+  }, []);
+  // Save preference when changed
+  useEffect(() => {
+    AsyncStorage.setItem('mapProvider', mapProvider);
+  }, [mapProvider]);
+  // Backend URL config (replace with your computer's IP)
+  const BACKEND_URL = 'http://192.168.0.27:8000/route'; // <-- CHANGE THIS TO YOUR COMPUTER'S IP
+  // Fetch route from backend
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await fetch(BACKEND_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            from_lat: 1.29027,
+            from_lng: 103.851959,
+            to_lat: 1.2906,
+            to_lng: 103.8523,
+            profile: 'safest',
+          }),
+        });
+        if (!res.ok) throw new Error('Failed to fetch route');
+        const data = await res.json();
+        if (!data.route) throw new Error('No route data');
+        setRouteCoords(data.route.map((p: any) => ({ latitude: p.lat, longitude: p.lng })));
+      } catch (e: any) {
+        setError(e.message || 'Unknown error');
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [mapProvider]);
   const theme = useColorScheme() ?? 'light';
   const themeColors = Colors[theme];
   const accent = useMemo(() => themeColors.progressFill, [themeColors]);
@@ -56,6 +105,12 @@ export default function NavigateScreen() {
     })();
   }, []);
 
+  // For OneMap, convert to JS array for leaflet
+  const oneMapRouteJS = routeCoords.map(c => `[${c.latitude},${c.longitude}]`).join(',');
+  const initialRegion = routeCoords[0]
+    ? { ...routeCoords[0], latitudeDelta: 0.001, longitudeDelta: 0.001 }
+    : { latitude: 1.29027, longitude: 103.851959, latitudeDelta: 0.001, longitudeDelta: 0.001 };
+
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <ThemedView style={[styles.header, { backgroundColor: themeColors.cardSecondary, borderColor: themeColors.cardBorder }] }>
@@ -79,25 +134,65 @@ export default function NavigateScreen() {
             <Legend color={themeColors.infoBorder} label="Mild" themeColors={themeColors} />
             <Legend color={themeColors.warningBorder} label="High" themeColors={themeColors} />
           </View>
-        </View>
-        <View style={[styles.mapFrame, { backgroundColor: themeColors.background, borderColor: themeColors.cardBorder }] }>
-          {routeSegments.map((segment, idx) => (
-            <View
-              key={segment.id}
-              style={[
-                styles.routeLine,
-                {
-                  backgroundColor: segment.color,
-                  width: `${70 - idx * 10}%`,
-                  left: `${8 + idx * 6}%`,
-                },
+          {/* Map provider toggle */}
+          <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
+            <Pressable
+              onPress={() => setMapProvider('google')}
+              style={({ pressed }) => [
+                { padding: 8, borderRadius: 8, borderWidth: 1, borderColor: mapProvider === 'google' ? themeColors.accent : themeColors.cardBorder, backgroundColor: mapProvider === 'google' ? themeColors.accent : themeColors.cardSecondary, marginRight: 4 },
+                pressed && { opacity: 0.8 },
               ]}
-            />
-          ))}
-          <View style={[styles.positionDot, { backgroundColor: themeColors.card, borderColor: themeColors.progressFill }]} />
-          <View style={[styles.marker, { top: '15%', backgroundColor: themeColors.warningBorder }]} />
-          <View style={[styles.marker, { top: '45%', backgroundColor: themeColors.infoBorder }]} />
+              accessibilityRole="button"
+              accessibilityState={{ selected: mapProvider === 'google' }}
+            >
+              <Text style={{ color: mapProvider === 'google' ? '#0B1A12' : themeColors.text }}>Google Maps</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => setMapProvider('onemap')}
+              style={({ pressed }) => [
+                { padding: 8, borderRadius: 8, borderWidth: 1, borderColor: mapProvider === 'onemap' ? themeColors.accent : themeColors.cardBorder, backgroundColor: mapProvider === 'onemap' ? themeColors.accent : themeColors.cardSecondary },
+                pressed && { opacity: 0.8 },
+              ]}
+              accessibilityRole="button"
+              accessibilityState={{ selected: mapProvider === 'onemap' }}
+            >
+              <Text style={{ color: mapProvider === 'onemap' ? '#0B1A12' : themeColors.text }}>OneMap SG</Text>
+            </Pressable>
+          </View>
         </View>
+        {/* Map area: Google or OneMap */}
+        <View style={[styles.mapFrame, { backgroundColor: themeColors.background, borderColor: themeColors.cardBorder }] }>
+          {loading ? (
+            <ActivityIndicator size="large" color={themeColors.accent} style={{ flex: 1, alignSelf: 'center' }} />
+          ) : error ? (
+            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+              <ThemedText type="defaultSemiBold" style={{ color: themeColors.warning }}>
+                {error}
+              </ThemedText>
+            </View>
+          ) : mapProvider === 'onemap' ? (
+            <WebView
+              style={{ flex: 1, borderRadius: 12 }}
+              source={{
+                html: `<!DOCTYPE html><html><head><meta name='viewport' content='width=device-width, initial-scale=1.0'><style>html,body,#map{height:100%;margin:0;padding:0;}#map{height:100vh;width:100vw;}</style></head><body><div id='map'></div><script src='https://maps.onemap.sg/leaflet/onemap-leaflet.js'></script><link rel='stylesheet' href='https://maps.onemap.sg/leaflet/onemap-leaflet.css'/><script>var map = L.map('map').setView([${routeCoords[0]?.latitude || 1.29027},${routeCoords[0]?.longitude || 103.851959}], 17);L.tileLayer('https://maps.onemap.sg/tiles/1.0.0/default/{z}/{x}/{y}.png', {maxZoom: 18,attribution: 'Map data © contributors, OneMap SG'}).addTo(map);var route = L.polyline([${oneMapRouteJS}], {color:'#007AFF',weight:4}).addTo(map);</script></body></html>`
+              }}
+              originWhitelist={["*"]}
+              javaScriptEnabled
+              domStorageEnabled
+              automaticallyAdjustContentInsets={false}
+              scrollEnabled={false}
+            />
+          ) : Platform.OS === 'web' && mapProvider === 'google' ? (
+            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+              <ThemedText type="defaultSemiBold" style={{ color: themeColors.info }}>
+                Google Maps is not supported on web. Please use OneMap or view on mobile.
+              </ThemedText>
+            </View>
+          ) : (
+            <NativeMap routeCoords={routeCoords} initialRegion={initialRegion} themeColors={themeColors} />
+          )}
+        </View>
+        {/* ...existing segmentRow and mapActions... */}
         <View style={styles.segmentRow}>
           {routeSegments.map((segment) => (
             <View key={segment.id} style={[styles.segmentChip, { backgroundColor: themeColors.cardSecondary, borderColor: themeColors.cardBorder }] }>

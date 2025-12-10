@@ -12,7 +12,7 @@
       "supportsTablet": true
     },
     "android": {
-      "package": "com.yourcompany.accessnowsg",
+      "package": "com.cloudelites.accessnowsg",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -20,7 +20,9 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "config": {
-        "googleMapsApiKey": "AIzaSyBR0jHH7zJjpHdDa6540HRVcbgVnFD7BJA"
+        "googleMaps": {
+          "apiKey": "AIzaSyBR0jHH7zJjpHdDa6540HRVcbgVnFD7BJA"
+        }
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false
