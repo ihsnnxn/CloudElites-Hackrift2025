@@ -1,3 +1,75 @@
+def simulate_realtime_hazard(G: nx.Graph, nodes: dict, path: list, hazard_type: str = "lift_breakdown") -> list:
+    """
+    Simulate a real-time hazard (e.g., lift breakdown, rain) and reroute user.
+    Returns new path and a message.
+    """
+    # For demo, block the next edge and reroute
+    if len(path) < 2:
+        return path, f"No reroute needed."
+    u, v = path[1], path[2] if len(path) > 2 else path[1]
+    G[u][v]['hazard_penalty'] = 999
+    G[u][v]['blocked'] = hazard_type
+    try:
+        new_path = [path[0]] + list(nx.dijkstra_path(G, u, path[-1], weight='weight'))
+        msg = f"Hazard '{hazard_type}' detected at edge {u}-{v}. Rerouting..."
+        return new_path, msg
+    except Exception:
+        return path, f"No alternative route found due to hazard."
+
+def voice_activated_routing_stub(command: str) -> str:
+    """
+    Stub for voice-activated routing. Returns a mock response.
+    """
+    if "safest route" in command:
+        return "Routing to safest path based on current hazards."
+    if "report" in command:
+        return "Hazard report received. Thank you!"
+    return "Voice command not recognized."
+
+def accessibility_heatmap(G: nx.Graph, nodes: dict) -> dict:
+    """
+    Generate a mock accessibility heatmap based on edge penalties.
+    Returns a dict of node:score for visualization.
+    """
+    heatmap = {}
+    for n in nodes:
+        score = 100
+        for nbr in G.neighbors(n):
+            score -= G[n][nbr].get('hazard_penalty', 0) / 10
+        heatmap[n] = max(0, round(score, 1))
+    return heatmap
+
+def instant_feedback_loop(path: list, hazards: dict, nodes: dict) -> list:
+    """
+    After user passes a hazard, prompt for confirmation/update.
+    """
+    feedback = []
+    for n in path:
+        for feature in hazards.get('features', []):
+            coords = feature['geometry']['coordinates']
+            if abs(nodes[n][0] - coords[1]) < 0.00005 and abs(nodes[n][1] - coords[0]) < 0.00005:
+                feedback.append({
+                    'node': n,
+                    'hazard_id': feature['properties']['id'],
+                    'prompt': f"Did you encounter hazard '{feature['properties']['type']}' at {n}? Confirm, update, or mark as resolved."
+                })
+    return feedback
+
+def personalized_ai_recommendations(user_history: list, preferences: dict, weather: str = None) -> list:
+    """
+    Suggest activities, meetups, or venues based on user history, preferences, and weather.
+    Returns a list of recommendations (mock/demo).
+    """
+    recs = []
+    if weather == "rain":
+        recs.append("Rain approaching: Here are 3 wheelchair-friendly indoor activities near you.")
+    if preferences.get("prefer_parks"):
+        recs.append("Based on your outings, you may like these accessible parks.")
+    if user_history:
+        recs.append(f"You and {user_history[-1]['friend']} both visited {user_history[-1]['place']}. Want to meet up again?")
+    if not recs:
+        recs.append("Explore new accessible venues nearby!")
+    return recs
 import networkx as nx
 from typing import Any, Dict, List, Tuple
 
