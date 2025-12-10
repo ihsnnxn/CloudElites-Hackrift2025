@@ -60,9 +60,11 @@ def apply_hazards(
         """Check if point p is near coordinates c (approx. 5m)."""
         return abs(p[0] - c[1]) < threshold and abs(p[1] - c[0]) < threshold
 
-    # Reset all hazard penalties
+    # Reset all hazard penalties and ensure 'weight' is initialized
     for u, v in G.edges():
         G[u][v]['hazard_penalty'] = 0
+        base_cost = G[u][v].get('base_cost', 1)
+        G[u][v]['weight'] = base_cost
 
     # Integrate all hazards from GeoJSON
     for feature in hazards.get('features', []):
@@ -74,6 +76,11 @@ def apply_hazards(
             v_pos = nodes[v]
             if is_near(u_pos, coords) or is_near(v_pos, coords):
                 G[u][v]['hazard_penalty'] += confidence * severity * hazard_weight
+    # After applying hazards, update 'weight' to include hazard_penalty
+    for u, v in G.edges():
+        base_cost = G[u][v].get('base_cost', 1)
+        hazard_penalty = G[u][v].get('hazard_penalty', 0)
+        G[u][v]['weight'] = base_cost + hazard_penalty
     return G
 
 # Dijkstra with hazard weighting

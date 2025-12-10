@@ -1,0 +1,124 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          103.851959,
+          1.29027
+        ]
+      },
+      "properties": {
+        "id": "hazard1",
+        "type": "curb_drop",
+        "severity": 0.8,
+        "confidence": 0.9,
+        "last_seen": "2025-12-09T10:00:00Z"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          103.852,
+          1.2903
+        ]
+      },
+      "properties": {
+        "id": "hazard2",
+        "type": "broken_pavement",
+        "severity": 0.6,
+        "confidence": 0.85,
+        "last_seen": "2025-12-09T09:45:00Z"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          103.851959,
+          1.29027
+        ]
+      },
+      "properties": {
+        "id": "hazard3",
+        "type": "curb",
+        "severity": 0.5,
+        "confidence": 0.9,
+        "last_seen": "2025-12-10T12:39:06.029951"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          103.851959,
+          1.29027
+        ]
+      },
+      "properties": {
+        "id": "hazard4",
+        "type": "curb",
+        "severity": 0.5,
+        "confidence": 0.9,
+        "last_seen": "2025-12-10T12:41:26.826095"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          103.851959,
+          1.29027
+        ]
+      },
+      "properties": {
+        "id": "hazard5",
+        "type": "curb",
+        "severity": 0.5,
+        "confidence": 0.9,
+        "last_seen": "2025-12-10T12:45:23.138806+00:00"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          103.851959,
+          1.29027
+        ]
+      },
+      "properties": {
+        "id": "hazard6",
+        "type": "curb",
+        "severity": 0.5,
+        "confidence": 0.9,
+        "last_seen": "2025-12-10T12:47:38.416889+00:00"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          103.851959,
+          1.29027
+        ]
+      },
+      "properties": {
+        "id": "hazard7",
+        "type": "curb",
+        "severity": 0.5,
+        "confidence": 0.9,
+        "last_seen": "2025-12-10T12:49:38.873489+00:00"
+      }
+    }
+  ]
+}

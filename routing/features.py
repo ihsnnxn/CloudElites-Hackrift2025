@@ -1,3 +1,10 @@
+import logging
+import networkx as nx
+from typing import Any, Dict, List, Tuple
+
+
+route_cache = {}
+
 def get_route_with_external_data(G: nx.Graph, nodes: dict, start: str, end: str, profile: str = "safest", external_data: dict = None) -> list:
     """
     Compute a route using all available data, including external APIs/sensors (e.g., crowd, weather).
@@ -14,12 +21,6 @@ def get_route_with_external_data(G: nx.Graph, nodes: dict, start: str, end: str,
     if external_data:
         G = merge_external_data(G, nodes, external_data)
     return get_route_with_profile(G, start, end, profile)
-import logging
-import networkx as nx
-from typing import Any, Dict, List, Tuple
-
-
-route_cache = {}
 
 def merge_external_data(G: nx.Graph, nodes: dict, external_data: dict) -> nx.Graph:
     """
@@ -46,6 +47,11 @@ def merge_external_data(G: nx.Graph, nodes: dict, external_data: dict) -> nx.Gra
             if 'hazard_penalty' not in G[u][v]:
                 G[u][v]['hazard_penalty'] = 0
             G[u][v]['hazard_penalty'] += 25
+    # After merging external data, update 'weight' to include hazard_penalty
+    for u, v in G.edges():
+        base_cost = G[u][v].get('base_cost', 1)
+        hazard_penalty = G[u][v].get('hazard_penalty', 0)
+        G[u][v]['weight'] = base_cost + hazard_penalty
     return G
 
 def route_usage_stats(route_history: list) -> dict:
@@ -258,6 +264,11 @@ def get_route_with_profile(G: nx.Graph, start: str, end: str, profile: str = "sa
     elif profile == "scenic":
         prefs = {"prefer_parks": True}
     G = apply_user_preferences(G, prefs)
+    # Ensure 'weight' is set on all edges before running Dijkstra
+    for u, v in G.edges():
+        base_cost = G[u][v].get('base_cost', 1)
+        hazard_penalty = G[u][v].get('hazard_penalty', 0)
+        G[u][v]['weight'] = base_cost + hazard_penalty
     try:
         path = list(nx.dijkstra_path(G, start, end, weight='weight'))
         route_cache[cache_key] = path
@@ -475,6 +486,9 @@ def annotate_edges(G: nx.Graph, annotations: dict) -> nx.Graph:
 
 def apply_user_preferences(G: nx.Graph, preferences: dict) -> nx.Graph:
     for u, v in G.edges():
+        base_cost = G[u][v].get('base_cost', 1)
+        hazard_penalty = G[u][v].get('hazard_penalty', 0)
+        G[u][v]['weight'] = base_cost + hazard_penalty
         if preferences.get('avoid_slope') and G[u][v].get('slope', 0) > 0.05:
             G[u][v]['weight'] = float('inf')
         if preferences.get('prefer_covered') and not G[u][v].get('covered', False):

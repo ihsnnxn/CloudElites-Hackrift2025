@@ -2,16 +2,21 @@
 from fastapi import FastAPI, UploadFile, File, Form, Body
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
-from typing import Optional
+from typing import Optional, List, Dict, Any
+from pydantic import BaseModel, Field
 
 import uuid
 import os
-import datetime
+import logging
 import json
-import sys
-# Ensure routing directory is always correctly added to sys.path
+import aiofiles
+import datetime
 from routing import engine
 from routing import features
+from config import UPLOAD_DIR, HAZARD_FILE, CORS_ALLOW_ORIGINS, PROXIMITY_THRESHOLD
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
+logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title="CloudElites Routing API",
@@ -29,7 +34,7 @@ app = FastAPI(
 # Allow all origins for hackathon/demo
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=CORS_ALLOW_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -38,48 +43,96 @@ app.add_middleware(
 UPLOAD_DIR = "uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-@app.post("/hazards", tags=["Hazard"], summary="Add hazard point")
-def add_hazard(
-    lng: float = Body(...),
-    lat: float = Body(...),
-    hazard_type: str = Body(...),
-    severity: float = Body(...),
-    confidence: float = Body(...),
-    last_seen: str = Body(None),
-    hazard_id: str = Body(None)
-):
-    with open("sample_hazards.geojson", "r") as f:
-        geojson = json.load(f)
-    new_id = hazard_id or f"hazard{len(geojson['features'])+1}"
+class HazardRequest(BaseModel):
+    lng: float = Field(..., json_schema_extra={"example": 103.851959})
+    lat: float = Field(..., json_schema_extra={"example": 1.290270})
+    hazard_type: str = Field(..., json_schema_extra={"example": "curb"})
+    severity: float = Field(..., json_schema_extra={"example": 0.5})
+    confidence: float = Field(..., json_schema_extra={"example": 0.9})
+    last_seen: Optional[str] = Field(None, json_schema_extra={"example": "2025-12-10T12:00:00Z"})
+    hazard_id: Optional[str] = Field(None, json_schema_extra={"example": "hazard123"})
+
+class HazardFeature(BaseModel):
+    type: str
+    geometry: Dict[str, Any]
+    properties: Dict[str, Any]
+
+class HazardResponse(BaseModel):
+    status: str
+    feature: HazardFeature
+
+@app.post(
+    "/hazards",
+    tags=["Hazard"],
+    summary="Add hazard point",
+    response_model=HazardResponse,
+    description="Add a new hazard point to the system. Use this to report obstacles, curbs, or other hazards detected in the environment.",
+    response_description="Status and the added hazard feature."
+)
+async def add_hazard(req: HazardRequest):
+    logger.info(f"Received add_hazard request: {req}")
+    try:
+        async with aiofiles.open("sample_hazards.geojson", "r") as f:
+                geojson = json.loads(await f.read())
+    except Exception as e:
+        logger.error(f"Error reading hazards file: {e}")
+        return JSONResponse({"error": "Failed to read hazards file", "details": str(e)}, status_code=500)
+    new_id = req.hazard_id or f"hazard{len(geojson['features'])+1}"
     feature = {
         "type": "Feature",
-        "geometry": {"type": "Point", "coordinates": [lng, lat]},
+        "geometry": {"type": "Point", "coordinates": [req.lng, req.lat]},
         "properties": {
             "id": new_id,
-            "type": hazard_type,
-            "severity": severity,
-            "confidence": confidence,
-            "last_seen": last_seen or datetime.datetime.utcnow().isoformat()
+            "type": req.hazard_type,
+            "severity": req.severity,
+            "confidence": req.confidence,
+            "last_seen": req.last_seen or datetime.datetime.now(datetime.UTC).isoformat()
         }
     }
     geojson['features'].append(feature)
-    with open("sample_hazards.geojson", "w") as f:
-        json.dump(geojson, f, indent=2)
+    try:
+        async with aiofiles.open("sample_hazards.geojson", "w") as f:
+                await f.write(json.dumps(geojson, indent=2))
+    except Exception as e:
+        logger.error(f"Error writing hazards file: {e}")
+        return JSONResponse({"error": "Failed to write hazards file", "details": str(e)}, status_code=500)
     return {"status": "added", "feature": feature}
 
-@app.delete("/hazards/{hazard_id}", tags=["Hazard"], summary="Remove hazard point")
-def delete_hazard(hazard_id: str):
-    with open("sample_hazards.geojson", "r") as f:
-        geojson = json.load(f)
+@app.delete(
+    "/hazards/{hazard_id}",
+    tags=["Hazard"],
+    summary="Remove hazard point",
+    description="Delete a hazard point by its unique ID.",
+    response_description="Status and number of hazards removed."
+)
+async def delete_hazard(hazard_id: str):
+    logger.info(f"Received delete_hazard request: {hazard_id}")
+    try:
+        async with aiofiles.open("sample_hazards.geojson", "r") as f:
+                geojson = json.loads(await f.read())
+    except Exception as e:
+        logger.error(f"Error reading hazards file: {e}")
+        return JSONResponse({"error": "Failed to read hazards file", "details": str(e)}, status_code=500)
     before = len(geojson['features'])
     geojson['features'] = [f for f in geojson['features'] if f['properties']['id'] != hazard_id]
     after = len(geojson['features'])
-    with open("sample_hazards.geojson", "w") as f:
-        json.dump(geojson, f, indent=2)
+    try:
+        async with aiofiles.open("sample_hazards.geojson", "w") as f:
+                await f.write(json.dumps(geojson, indent=2))
+    except Exception as e:
+        logger.error(f"Error writing hazards file: {e}")
+        return JSONResponse({"error": "Failed to write hazards file", "details": str(e)}, status_code=500)
     return {"status": "deleted", "removed": before - after}
 
-@app.post("/submit_photo", tags=["Photo"], summary="Upload photo and GPS for hazard detection")
+@app.post(
+    "/submit_photo",
+    tags=["Photo"],
+    summary="Upload photo and GPS for hazard detection",
+    description="Upload a photo and GPS metadata for hazard detection. Only JPEG and PNG files are accepted.",
+    response_description="Status and metadata of the uploaded photo."
+)
 async def submit_photo(
+    # ...existing code...
     photo: UploadFile = File(...),
     gps_lat: float = Form(...),
     gps_lng: float = Form(...),
@@ -90,8 +143,13 @@ async def submit_photo(
     # Save photo
     photo_id = str(uuid.uuid4())
     file_path = os.path.join(UPLOAD_DIR, f"{photo_id}_{photo.filename}")
-    with open(file_path, "wb") as f:
-        f.write(await photo.read())
+    try:
+        with open(file_path, "wb") as f:
+            f.write(await photo.read())
+        logger.info(f"Photo saved: {file_path}")
+    except Exception as e:
+        logger.error(f"Error saving photo: {e}")
+        return JSONResponse({"error": "Failed to save photo", "details": str(e)}, status_code=500)
     # Normalize metadata
     meta = {
         "photo_id": photo_id,
@@ -100,42 +158,88 @@ async def submit_photo(
         "gps_lng": gps_lng,
         "gps_accuracy": gps_accuracy,
         "device_heading": device_heading,
-        "timestamp": timestamp or datetime.datetime.utcnow().isoformat()
+        "timestamp": timestamp or datetime.datetime.now(datetime.UTC).isoformat()
     }
     # TODO: Run AI classifier, produce hazard GeoJSON
     # For now, return stub
     return JSONResponse({"status": "received", "meta": meta})
 
-@app.get("/hazards", tags=["Hazard"], summary="Get all hazard points")
-def get_hazards():
+@app.get(
+    "/hazards",
+    tags=["Hazard"],
+    summary="Get all hazard points",
+    description="Retrieve all hazard points as GeoJSON features.",
+    response_description="GeoJSON containing all hazard features."
+)
+async def get_hazards():
+    logger.info("Received get_hazards request")
     # Return sample GeoJSON hazard points from file
-    import json
-    with open("sample_hazards.geojson", "r") as f:
-        geojson = json.load(f)
+    try:
+        async with aiofiles.open("sample_hazards.geojson", "r") as f:
+                geojson = json.loads(await f.read())
+    except Exception as e:
+        logger.error(f"Error reading hazards file: {e}")
+        return JSONResponse({"error": "Failed to read hazards file", "details": str(e)}, status_code=500)
     return JSONResponse(geojson)
 
-@app.post("/ingest_iot", tags=["IoT"], summary="Ingest IoT/IMU data")
+@app.post(
+    "/ingest_iot",
+    tags=["IoT"],
+    summary="Ingest IoT/IMU data",
+    description="Ingest IoT or IMU sensor data for trace analysis.",
+    response_description="Status of IoT data ingestion."
+)
 def ingest_iot(data: dict):
     # TODO: Process IMU/IoT data, attach to trace
     return JSONResponse({"status": "iot data received"})
 
-@app.get("/health", tags=["Health"], summary="API health check")
+@app.get(
+    "/health",
+    tags=["Health"],
+    summary="API health check",
+    description="Check the health status of the API.",
+    response_description="Status of the API."
+)
 def health():
     return {"status": "ok"}
 
 
 # /route endpoint: computes optimal route and hazard alerts, now supports external data sources
-@app.post("/route", tags=["Routing"], summary="Compute accessible route with hazard and external data integration")
-def route(
-    from_node: str = Body(None),
-    to_node: str = Body(None),
-    from_lat: float = Body(None),
-    from_lng: float = Body(None),
-    to_lat: float = Body(None),
-    to_lng: float = Body(None),
-    profile: str = Body("safest"),
-    external_data: dict = Body(None)
-):
+class RouteRequest(BaseModel):
+    from_node: Optional[str] = Field(None, json_schema_extra={"example": "A"})
+    to_node: Optional[str] = Field(None, json_schema_extra={"example": "H"})
+    from_lat: Optional[float] = Field(None, json_schema_extra={"example": 1.290270})
+    from_lng: Optional[float] = Field(None, json_schema_extra={"example": 103.851959})
+    to_lat: Optional[float] = Field(None, json_schema_extra={"example": 1.290600})
+    to_lng: Optional[float] = Field(None, json_schema_extra={"example": 103.852300})
+    profile: str = Field("safest", json_schema_extra={"example": "safest"})
+    external_data: Optional[Dict[str, Any]] = Field(None, json_schema_extra={"example": {"crowd_density": {"B": 2}, "weather": {"rain": True}}})
+
+class RoutePoint(BaseModel):
+    node: str
+    lat: float
+    lng: float
+    hazards: List[Dict[str, Any]] = []
+
+class RouteGeoJSON(BaseModel):
+    type: str
+    coordinates: List[List[float]]
+
+class RouteResponse(BaseModel):
+    route: List[RoutePoint]
+    route_geojson: RouteGeoJSON
+    hazard_alerts: List[Dict[str, Any]]
+
+@app.post(
+    "/route",
+    tags=["Routing"],
+    summary="Compute accessible route with hazard and external data integration",
+    response_model=RouteResponse,
+    description="Compute the optimal accessible route, integrating hazards and optional external data (crowd, weather, etc.).",
+    response_description="Route details, geojson, and hazard alerts."
+)
+def route(req: RouteRequest):
+    logger.info(f"Received route request: {req}")
     """
     Computes optimal accessible route, integrating hazards and optional external data (crowd, weather, etc.).
     POST JSON body example:
@@ -146,17 +250,30 @@ def route(
       "external_data": {"crowd_density": {"B": 2}, "weather": {"rain": true}}
     }
     """
-    G, nodes = engine.load_graph()
-    with open("sample_hazards.geojson", "r") as f:
-        hazards = json.load(f)
-    G = engine.apply_hazards(G, nodes, hazards)
+    try:
+        G, nodes = engine.load_graph()
+    except Exception as e:
+        logger.error(f"Error loading graph: {e}")
+        return JSONResponse({"error": "Failed to load graph", "details": str(e)}, status_code=500)
+    try:
+           with open(HAZARD_FILE, "r") as f:
+            hazards = json.load(f)
+    except Exception as e:
+        logger.error(f"Error reading hazards file: {e}")
+        return JSONResponse({"error": "Failed to read hazards file", "details": str(e)}, status_code=500)
+    try:
+        G = engine.apply_hazards(G, nodes, hazards)
+    except Exception as e:
+        logger.error(f"Error applying hazards: {e}")
+        return JSONResponse({"error": "Failed to apply hazards", "details": str(e)}, status_code=500)
     def find_nearest_node(lat, lng):
         return min(nodes, key=lambda k: (nodes[k][0] - lat)**2 + (nodes[k][1] - lng)**2)
-    start = from_node or (find_nearest_node(from_lat, from_lng) if from_lat and from_lng else "A")
-    end = to_node or (find_nearest_node(to_lat, to_lng) if to_lat and to_lng else "H")
+    start = req.from_node or (find_nearest_node(req.from_lat, req.from_lng) if req.from_lat and req.from_lng else "A")
+    end = req.to_node or (find_nearest_node(req.to_lat, req.to_lng) if req.to_lat and req.to_lng else "H")
     try:
-        path = features.get_route_with_external_data(G, nodes, start, end, profile=profile, external_data=external_data)
+        path = features.get_route_with_external_data(G, nodes, start, end, profile=req.profile, external_data=req.external_data)
     except Exception as e:
+        logger.error(f"No route found: {e}")
         return JSONResponse({"error": "No route found", "details": str(e)}, status_code=400)
     route_points = []
     for n in path:
@@ -164,7 +281,7 @@ def route(
         nearby = []
         for feature in hazards.get('features', []):
             coords = feature['geometry']['coordinates']
-            if abs(nodes[n][0] - coords[1]) < 0.00005 and abs(nodes[n][1] - coords[0]) < 0.00005:
+            if abs(nodes[n][0] - coords[1]) < PROXIMITY_THRESHOLD and abs(nodes[n][1] - coords[0]) < PROXIMITY_THRESHOLD:
                 meta = feature['properties'].copy()
                 meta['recommended_action'] = "avoid" if meta['severity'] > 0.7 else "caution"
                 nearby.append(meta)
@@ -174,9 +291,13 @@ def route(
         "type": "LineString",
         "coordinates": [[p["lng"], p["lat"]] for p in route_points]
     }
-    route_hazards = engine.get_route_hazards(path, nodes, hazards)
-    return JSONResponse({
+    try:
+        route_hazards = engine.get_route_hazards(path, nodes, hazards)
+    except Exception as e:
+        logger.error(f"Error getting route hazards: {e}")
+        return JSONResponse({"error": "Failed to get route hazards", "details": str(e)}, status_code=500)
+    return {
         "route": route_points,
         "route_geojson": linestring,
         "hazard_alerts": route_hazards
-    })
+    }
