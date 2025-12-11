@@ -162,8 +162,35 @@ export default function NavigateScreen() {
   const [isLiveTracking, setIsLiveTracking] = useState(false);
   const [currentPosition, setCurrentPosition] = useState<{ latitude: number; longitude: number } | null>(null);
   const [routeProgress, setRouteProgress] = useState(0);
+  const [announcedHazards, setAnnouncedHazards] = useState<Set<string>>(new Set());
   
-  // Generate hazard alerts dynamically based on current route coordinates
+  // Route preferences
+  const [avoidPreferences, setAvoidPreferences] = useState<Set<string>>(new Set());
+  const [showPreferences, setShowPreferences] = useState(true); // Start expanded
+  
+  // Dev menu for faster demo
+  const [devMenuVisible, setDevMenuVisible] = useState(false);
+  const [navigationSpeed, setNavigationSpeed] = useState(2000); // milliseconds per step
+  const headerTapCount = useRef(0);
+  const headerTapTimeout = useRef<any>(null);
+  
+  // Calculate distance between two coordinates in meters using Haversine formula
+  const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
+    const R = 6371000; // Earth's radius in meters
+    const φ1 = lat1 * Math.PI / 180;
+    const φ2 = lat2 * Math.PI / 180;
+    const Δφ = (lat2 - lat1) * Math.PI / 180;
+    const Δλ = (lon2 - lon1) * Math.PI / 180;
+
+    const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+              Math.cos(φ1) * Math.cos(φ2) *
+              Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+    return R * c;
+  };
+
+  // Generate hazard alerts dynamically based on current route coordinates and position
   const hazardAlerts = useMemo(() => {
     if (routeCoords.length < 4) return [];
     
@@ -174,33 +201,60 @@ export default function NavigateScreen() {
       Math.floor(routeCoords.length * 0.75),
     ];
     
+    const currentPos = currentPosition || routeCoords[0];
+    const currentIndex = routeProgress;
+    
     return [
       { 
         id: 'haz-1', 
         title: 'Temporary bin blocking ramp', 
         severity: 'high' as const, 
-        distance: '60m ahead', 
+        distance: (() => {
+          const dist = calculateDistance(
+            currentPos.latitude, currentPos.longitude,
+            routeCoords[indices[0]].latitude, routeCoords[indices[0]].longitude
+          );
+          const isPassed = currentIndex > indices[0];
+          return `${Math.round(dist)}m ${isPassed ? 'behind' : 'ahead'}`;
+        })(),
         lat: routeCoords[indices[0]].latitude, 
-        lng: routeCoords[indices[0]].longitude 
+        lng: routeCoords[indices[0]].longitude,
+        routeIndex: indices[0]
       },
       { 
         id: 'haz-2', 
         title: 'Slight vibration on tiles', 
         severity: 'mild' as const, 
-        distance: '120m ahead', 
+        distance: (() => {
+          const dist = calculateDistance(
+            currentPos.latitude, currentPos.longitude,
+            routeCoords[indices[1]].latitude, routeCoords[indices[1]].longitude
+          );
+          const isPassed = currentIndex > indices[1];
+          return `${Math.round(dist)}m ${isPassed ? 'behind' : 'ahead'}`;
+        })(),
         lat: routeCoords[indices[1]].latitude, 
-        lng: routeCoords[indices[1]].longitude 
+        lng: routeCoords[indices[1]].longitude,
+        routeIndex: indices[1]
       },
       { 
         id: 'haz-3', 
         title: 'Safe path ahead', 
         severity: 'safe' as const, 
-        distance: '180m ahead', 
+        distance: (() => {
+          const dist = calculateDistance(
+            currentPos.latitude, currentPos.longitude,
+            routeCoords[indices[2]].latitude, routeCoords[indices[2]].longitude
+          );
+          const isPassed = currentIndex > indices[2];
+          return `${Math.round(dist)}m ${isPassed ? 'behind' : 'ahead'}`;
+        })(),
         lat: routeCoords[indices[2]].latitude, 
-        lng: routeCoords[indices[2]].longitude 
+        lng: routeCoords[indices[2]].longitude,
+        routeIndex: indices[2]
       },
     ];
-  }, [routeCoords]);
+  }, [routeCoords, currentPosition, routeProgress]);
   
   // Animation values
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -263,6 +317,39 @@ export default function NavigateScreen() {
     loadRoute();
   }, [selectedRoute]);
   
+  // Reset announced hazards when starting new navigation
+  useEffect(() => {
+    if (isLiveTracking) {
+      setAnnouncedHazards(new Set());
+    }
+  }, [isLiveTracking, selectedRoute]);
+
+  // Check hazard proximity and announce
+  useEffect(() => {
+    if (!isLiveTracking || !currentPosition || routeCoords.length === 0) return;
+    
+    hazardAlerts.forEach((hazard) => {
+      // Check if we're approaching this hazard (not passed it yet)
+      const isApproaching = routeProgress < hazard.routeIndex;
+      
+      if (!isApproaching || announcedHazards.has(hazard.id)) return;
+      
+      const distance = calculateDistance(
+        currentPosition.latitude,
+        currentPosition.longitude,
+        hazard.lat,
+        hazard.lng
+      );
+      
+      // Announce when within 50 meters and approaching
+      if (distance <= 50) {
+        setAnnouncedHazards(prev => new Set(prev).add(hazard.id));
+        const severity = hazard.severity === 'high' ? 'Warning! ' : hazard.severity === 'mild' ? 'Notice: ' : '';
+        speakNext(`${severity}${hazard.title} in ${Math.round(distance)} meters ahead.`);
+      }
+    });
+  }, [currentPosition, isLiveTracking, hazardAlerts, announcedHazards, routeProgress]);
+  
   // Simulated live location tracking
   useEffect(() => {
     if (!isLiveTracking || routeCoords.length === 0) return;
@@ -284,10 +371,10 @@ export default function NavigateScreen() {
         
         return next;
       });
-    }, 2000); // Move every 2 seconds
+    }, navigationSpeed); // Dynamic speed from dev menu
     
     return () => clearInterval(interval);
-  }, [isLiveTracking, routeCoords]);
+  }, [isLiveTracking, routeCoords, navigationSpeed]);
   
   // Pulse animation for live tracking
   useEffect(() => {
@@ -342,21 +429,160 @@ export default function NavigateScreen() {
     ? { ...routeCoords[0], latitudeDelta: 0.001, longitudeDelta: 0.001 }
     : { latitude: 1.29027, longitude: 103.851959, latitudeDelta: 0.001, longitudeDelta: 0.001 };
 
+  // Secret dev menu toggle - tap header 5 times quickly
+  const handleHeaderTap = () => {
+    headerTapCount.current += 1;
+    
+    if (headerTapTimeout.current) {
+      clearTimeout(headerTapTimeout.current);
+    }
+    
+    if (headerTapCount.current >= 5) {
+      setDevMenuVisible(!devMenuVisible);
+      headerTapCount.current = 0;
+    }
+    
+    headerTapTimeout.current = setTimeout(() => {
+      headerTapCount.current = 0;
+    }, 2000);
+  };
+
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
-        <ThemedView style={[styles.header, { backgroundColor: themeColors.cardSecondary, borderColor: themeColors.cardBorder }] }>
-          <View style={{ flex: 1 }}>
-            <ThemedText type="subtitle">Route to: {ROUTE_PRESETS[selectedRoute].name}</ThemedText>
-            <ThemedText style={[styles.headerNote, { color: themeColors.muted }] }>
-              {isLiveTracking ? `Progress: ${routeProgress}/${routeCoords.length} • Live tracking active` : 'Select route and start navigation'}
-            </ThemedText>
-          </View>
+        <Pressable onPress={handleHeaderTap}>
+          <ThemedView style={[styles.header, { backgroundColor: themeColors.cardSecondary, borderColor: themeColors.cardBorder }] }>
+            <View style={{ flex: 1 }}>
+              <ThemedText type="subtitle">Route to: {ROUTE_PRESETS[selectedRoute].name}</ThemedText>
+              <ThemedText style={[styles.headerNote, { color: themeColors.muted }] }>
+                {isLiveTracking ? `Progress: ${routeProgress}/${routeCoords.length} • Live tracking active` : 'Select route and start navigation'}
+              </ThemedText>
+            </View>
           {isLiveTracking && (
             <Animated.View style={[styles.badge, { backgroundColor: themeColors.badge, borderColor: themeColors.badgeBorder, transform: [{ scale: pulseAnim }] }] }>
               <IconSymbol name="waveform.path" color={accent} size={18} />
               <ThemedText style={[styles.badgeText, { color: accent }]}>Live</ThemedText>
             </Animated.View>
+          )}
+        </ThemedView>
+        </Pressable>
+      </Animated.View>
+
+      {/* Dev Menu */}
+      {devMenuVisible && (
+        <ThemedView style={[styles.card, { backgroundColor: themeColors.cardSecondary, borderColor: themeColors.accent, borderWidth: 2 }]}>
+          <ThemedText type="defaultSemiBold" style={{ color: themeColors.accent }}>🔧 Dev Menu</ThemedText>
+          <View style={{ marginTop: 12, gap: 8 }}>
+            <ThemedText style={{ color: themeColors.muted }}>Navigation Speed</ThemedText>
+            <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+              {[
+                { label: 'Ultra Fast (250ms)', value: 250 },
+                { label: 'Fast (500ms)', value: 500 },
+                { label: 'Normal (2s)', value: 2000 },
+                { label: 'Slow (5s)', value: 5000 },
+              ].map((speed) => (
+                <Pressable
+                  key={speed.value}
+                  onPress={() => {
+                    setNavigationSpeed(speed.value);
+                    speakNext(`Speed set to ${speed.label}`);
+                  }}
+                  style={({ pressed }) => [
+                    {
+                      paddingHorizontal: 12,
+                      paddingVertical: 8,
+                      borderRadius: 6,
+                      borderWidth: 2,
+                      borderColor: navigationSpeed === speed.value ? themeColors.accent : themeColors.cardBorder,
+                      backgroundColor: navigationSpeed === speed.value ? themeColors.accent + '20' : themeColors.card,
+                    },
+                    pressed && { opacity: 0.7 },
+                  ]}
+                >
+                  <ThemedText style={{ fontSize: 12 }}>{speed.label}</ThemedText>
+                </Pressable>
+              ))}
+            </View>
+          </View>
+        </ThemedView>
+      )}
+
+      {/* Route Preferences */}
+      <Animated.View style={{ opacity: fadeAnim }}>
+        <ThemedView style={[styles.card, { backgroundColor: themeColors.card, borderColor: themeColors.cardBorder }]}>
+          <Pressable 
+            onPress={() => setShowPreferences(!showPreferences)}
+            style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}
+          >
+            <ThemedText type="defaultSemiBold">Route Preferences</ThemedText>
+            <IconSymbol 
+              name={showPreferences ? "chevron.up" : "chevron.down"} 
+              color={themeColors.text} 
+              size={20} 
+            />
+          </Pressable>
+          
+          {showPreferences && (
+            <View style={{ marginTop: 12, gap: 8 }}>
+              <ThemedText style={{ color: themeColors.muted, fontSize: 13 }}>
+                Select obstacles to avoid:
+              </ThemedText>
+              <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+                {[
+                  { id: 'steep-ramps', label: '🚧 Steep Ramps', icon: '↗️' },
+                  { id: 'bumpy-terrain', label: '⚠️ Bumpy Terrain', icon: '🪨' },
+                  { id: 'crowded-places', label: '👥 Crowded Places', icon: '🏪' },
+                  { id: 'narrow-paths', label: '↔️ Narrow Paths', icon: '🚶' },
+                  { id: 'stairs', label: '🪜 Stairs', icon: '📶' },
+                  { id: 'construction', label: '🚧 Construction', icon: '⚠️' },
+                ].map((pref) => {
+                  const isSelected = avoidPreferences.has(pref.id);
+                  return (
+                    <Pressable
+                      key={pref.id}
+                      onPress={() => {
+                        setAvoidPreferences(prev => {
+                          const newSet = new Set(prev);
+                          if (newSet.has(pref.id)) {
+                            newSet.delete(pref.id);
+                            speakNext(`${pref.label} enabled`);
+                          } else {
+                            newSet.add(pref.id);
+                            speakNext(`Avoiding ${pref.label}`);
+                          }
+                          return newSet;
+                        });
+                      }}
+                      style={({ pressed }) => [
+                        {
+                          flex: 1,
+                          minWidth: 140,
+                          paddingHorizontal: 12,
+                          paddingVertical: 10,
+                          borderRadius: 8,
+                          borderWidth: 2,
+                          borderColor: isSelected ? themeColors.warning : themeColors.cardBorder,
+                          backgroundColor: isSelected ? themeColors.warning + '15' : themeColors.cardSecondary,
+                          alignItems: 'center',
+                        },
+                        pressed && { opacity: 0.7 },
+                      ]}
+                    >
+                      <ThemedText style={{ fontSize: 13 }}>{pref.label}</ThemedText>
+                    </Pressable>
+                  );
+                })}
+              </View>
+              {avoidPreferences.size > 0 && (
+                <View style={{ marginTop: 8, padding: 8, backgroundColor: themeColors.infoBorder + '20', borderRadius: 6 }}>
+                  <ThemedText style={{ color: themeColors.muted, fontSize: 12 }}>
+                    ℹ️ Routes will avoid: {Array.from(avoidPreferences).map(id => 
+                      id.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+                    ).join(', ')}
+                  </ThemedText>
+                </View>
+              )}
+            </View>
           )}
         </ThemedView>
       </Animated.View>
@@ -566,15 +792,22 @@ L.marker([${hazard.lat}, ${hazard.lng}], {icon: ${iconVar}})
         </View>
         {/* ...existing segmentRow and mapActions... */}
         <View style={styles.segmentRow}>
-          {routeSegments.map((segment) => (
-            <View key={segment.id} style={[styles.segmentChip, { backgroundColor: themeColors.cardSecondary, borderColor: themeColors.cardBorder }] }>
-              <View style={[styles.dot, { backgroundColor: themeColors[segment.colorKey] }]} />
-              <View style={{ flex: 1 }}>
-                <ThemedText type="defaultSemiBold">{segment.label}</ThemedText>
-                <ThemedText style={[styles.muted, { color: themeColors.muted }]}>{segment.distance}</ThemedText>
+          {hazardAlerts.map((hazard) => {
+            const colorKey: SegmentColorKey = 
+              hazard.severity === 'safe' ? 'progressFill' : 
+              hazard.severity === 'mild' ? 'infoBorder' : 
+              'warningBorder';
+            
+            return (
+              <View key={hazard.id} style={[styles.segmentChip, { backgroundColor: themeColors.cardSecondary, borderColor: themeColors.cardBorder }] }>
+                <View style={[styles.dot, { backgroundColor: themeColors[colorKey] }]} />
+                <View style={{ flex: 1 }}>
+                  <ThemedText type="defaultSemiBold">{hazard.title}</ThemedText>
+                  <ThemedText style={[styles.muted, { color: themeColors.muted }]}>{hazard.distance}</ThemedText>
+                </View>
               </View>
-            </View>
-          ))}
+            );
+          })}
         </View>
         <View style={styles.mapActions}>
           <Animated.View style={{ flex: 1, transform: [{ scale: isLiveTracking ? pulseAnim : 1 }] }}>
