@@ -18,7 +18,7 @@ export default function useBLE() {
     // Simulate a scan and return a single mock device after 1.5s
     setDevices([]);
     setTimeout(() => {
-      const mock = { id: 'MOCK:01:23:45', name: 'Pet Robot (Mock)' };
+      const mock = { id: 'MOCK:01:23:45', name: 'WheelSense IoT Module' };
       setDevices([mock]);
       if (onDeviceFound) onDeviceFound();
     }, 1500);

@@ -4,6 +4,7 @@ from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional, List, Dict, Any
 from pydantic import BaseModel, Field
+import httpx
 
 import uuid
 import os
@@ -11,12 +12,23 @@ import logging
 import json
 import aiofiles
 import datetime
+from dotenv import load_dotenv
+
+# Load environment variables first
+load_dotenv()
+
 from routing import engine
 from routing import features
 from config import UPLOAD_DIR, HAZARD_FILE, CORS_ALLOW_ORIGINS, PROXIMITY_THRESHOLD
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
 logger = logging.getLogger(__name__)
+
+# Log API key status at startup
+if os.getenv("ONEMAP_API_KEY"):
+    logger.info("ONEMAP_API_KEY found and loaded")
+else:
+    logger.warning("ONEMAP_API_KEY not found - will use fallback routes")
 
 app = FastAPI(
     title="CloudElites Routing API",
@@ -97,6 +109,73 @@ async def add_hazard(req: HazardRequest):
         logger.error(f"Error writing hazards file: {e}")
         return JSONResponse({"error": "Failed to write hazards file", "details": str(e)}, status_code=500)
     return {"status": "added", "feature": feature}
+
+@app.get(
+    "/route/onemap",
+    tags=["Routing"],
+    summary="Proxy OneMap routing API",
+    description="Fetch route from OneMap routing service via backend proxy to avoid CORS issues.",
+    response_description="Route data from OneMap including geometry and instructions."
+)
+async def get_onemap_route(
+    start: str,
+    end: str,
+    routeType: str = "walk"
+):
+    logger.info(f"Proxying OneMap route request: {start} -> {end}, type={routeType}")
+    
+    url = "https://www.onemap.gov.sg/api/public/routingsvc/route"
+    params = {
+        "start": start,
+        "end": end,
+        "routeType": routeType
+    }
+    
+    # Note: OneMap API authentication
+    # Try adding API key as both header and query parameter
+    headers = {}
+    onemap_api_key = os.getenv("ONEMAP_API_KEY")
+    if onemap_api_key:
+        # Add as query parameter (common pattern for public APIs)
+        params["token"] = onemap_api_key
+        # Also try as header
+        headers["Authorization"] = f"Bearer {onemap_api_key}"
+        headers["X-API-Key"] = onemap_api_key
+        logger.info("Using OneMap API key for authentication")
+    else:
+        logger.warning("No ONEMAP_API_KEY found in environment - API may fail with 401")
+    
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.get(url, params=params, headers=headers)
+            response.raise_for_status()
+            data = response.json()
+            logger.info(f"OneMap route fetched successfully: {len(data.get('route_geometry', ''))} chars")
+            return data
+    except httpx.HTTPStatusError as e:
+        logger.error(f"OneMap API error: {e.response.status_code} - {e.response.text}")
+        
+        # If 401, provide helpful message
+        if e.response.status_code == 401:
+            return JSONResponse(
+                {
+                    "error": "OneMap API authentication required", 
+                    "details": "Please set ONEMAP_API_KEY in .env file. Register at https://www.onemap.gov.sg/apidocs/",
+                    "note": "Fallback to preset routes in frontend"
+                },
+                status_code=401
+            )
+        
+        return JSONResponse(
+            {"error": "OneMap API request failed", "details": str(e)},
+            status_code=e.response.status_code
+        )
+    except Exception as e:
+        logger.error(f"Error fetching OneMap route: {e}")
+        return JSONResponse(
+            {"error": "Failed to fetch route", "details": str(e)},
+            status_code=500
+        )
 
 @app.delete(
     "/hazards/{hazard_id}",
